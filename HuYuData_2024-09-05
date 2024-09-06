@@ -1,0 +1,90 @@
+import pandas as pd
+import yfinance as yf
+import matplotlib.pyplot as plt
+import seaborn as sns
+from statsmodels.tsa.stattools import adfuller
+from statsmodels.tsa.seasonal import seasonal_decompose
+
+# Download historical stock price data for AMD (Advanced Micro Devices)
+ticker = "AMD"
+data = yf.download(ticker, start="2015-01-01", end="2023-01-01")
+
+# Display the first few rows of the dataset
+print("First few rows of the data:")
+print(data.head())
+
+# Plot Adjusted Close price
+plt.figure(figsize=(14, 7))
+plt.plot(data['Adj Close'], label='AMD Adjusted Close Price')
+plt.title(f'{ticker} Adjusted Close Price')
+plt.xlabel('Date')
+plt.ylabel('Price (USD)')
+plt.legend()
+plt.show()
+
+# Moving averages (50-day and 200-day)
+data['50_MA'] = data['Adj Close'].rolling(window=50).mean()
+data['200_MA'] = data['Adj Close'].rolling(window=200).mean()
+
+plt.figure(figsize=(14, 7))
+plt.plot(data['Adj Close'], label='AMD Adjusted Close Price')
+plt.plot(data['50_MA'], label='50-Day Moving Average', color='orange')
+plt.plot(data['200_MA'], label='200-Day Moving Average', color='green')
+plt.title(f'{ticker} Adjusted Close Price with Moving Averages')
+plt.xlabel('Date')
+plt.ylabel('Price (USD)')
+plt.legend()
+plt.show()
+
+# Perform Augmented Dickey-Fuller (ADF) test for stationarity
+def adf_test(timeseries):
+    print('Results of Augmented Dickey-Fuller Test:')
+    result = adfuller(timeseries.dropna())
+    labels = ['ADF Test Statistic','p-value','#Lags Used','Number of Observations Used']
+    for value, label in zip(result, labels):
+        print(f'{label}: {value}')
+    if result[1] <= 0.05:
+        print("Reject null hypothesis - The data is stationary")
+    else:
+        print("Fail to reject null hypothesis - The data is non-stationary")
+
+# Apply ADF test on 'Adj Close'
+adf_test(data['Adj Close'])
+
+# Decomposing time series (Trend, Seasonality, Residuals)
+decomposition = seasonal_decompose(data['Adj Close'], model='multiplicative', period=365)
+trend = decomposition.trend
+seasonal = decomposition.seasonal
+residual = decomposition.resid
+
+# Plot decomposed components
+plt.figure(figsize=(12, 8))
+plt.subplot(411)
+plt.plot(data['Adj Close'], label='Original')
+plt.legend(loc='best')
+plt.subplot(412)
+plt.plot(trend, label='Trend')
+plt.legend(loc='best')
+plt.subplot(413)
+plt.plot(seasonal,label='Seasonality')
+plt.legend(loc='best')
+plt.subplot(414)
+plt.plot(residual, label='Residuals')
+plt.legend(loc='best')
+plt.tight_layout()
+plt.show()
+
+# Differencing for stationarity
+data['Differenced'] = data['Adj Close'].diff()
+
+# Plot differenced series
+plt.figure(figsize=(14, 7))
+plt.plot(data['Differenced'], label='Differenced Series')
+plt.title(f'{ticker} Differenced Adjusted Close Price')
+plt.xlabel('Date')
+plt.ylabel('Differenced Price')
+plt.legend()
+plt.show()
+
+# Apply ADF test on differenced series
+adf_test(data['Differenced'].dropna())
